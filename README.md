@@ -24,7 +24,8 @@ python3 -m http.server 8000
 # abra http://localhost:8000
 ```
 
-O deploy no GitHub Pages é feito pelo workflow `.github/workflows/pages.yml` a cada push na `main`.
+O GitHub Pages publica direto da branch `main` (raiz do repositório), então todo push na `main`
+atualiza o site. O `.nojekyll` desliga o processamento do Jekyll, que não é necessário aqui.
 
 ## Versão em C (terminal)
 
