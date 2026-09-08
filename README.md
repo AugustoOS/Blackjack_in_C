@@ -41,7 +41,7 @@ python3 -m http.server 8000
 ```
 
 O GitHub Pages publica direto da branch `main` (raiz do repositório), então todo push na `main`
-atualiza o site. O `.nojekyll` desliga o processamento do Jekyll, que não é necessário aqui.
+atualiza o site.
 
 ## Versão em C (terminal)
 
