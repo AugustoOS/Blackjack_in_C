@@ -160,7 +160,9 @@ const som = (() => {
 
   return {
     get mudo() { return mudo; },
-    ativar() { contexto(); },
+    // Cria o contexto (ou o acorda) dentro de um gesto do usuário: no celular
+    // ele nasce suspenso e volta a suspender quando a aba vai para segundo plano.
+    ativar() { if (!mudo) contexto(); },
     alternar() {
       mudo = !mudo;
       try { localStorage.setItem('bj-mudo', mudo ? '1' : '0'); } catch (_) { /* sem storage */ }
@@ -469,6 +471,7 @@ function comprar() {
 
   if (valor > LIMITE) {
     som.estouro();
+    vibrar([60, 40, 90]);
     mensagem(`Você recebeu um(a) ${carta.nome} de ${carta.naipe.nome} e estourou com ${valor}!`, 'derrota');
     parar();
     return;
@@ -594,6 +597,7 @@ function resultado() {
       : `${valorP1} contra ${valorPC} — o computador ${jogadaPC}.`;
 
     som.vitoria();
+    vibrar([40, 30, 40]);
     if (!movimentoReduzido) confete();
     mensagem(`Você ganhou! ${detalhe}`, 'vitoria');
   } else {
@@ -658,15 +662,19 @@ function rotularProxima(texto) {
 function confete() {
   const canvas = ui.confete;
   const ctx = canvas.getContext('2d');
+  const escala = Math.min(window.devicePixelRatio || 1, 2);
 
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  canvas.width = Math.floor(window.innerWidth * escala);
+  canvas.height = Math.floor(window.innerHeight * escala);
+  ctx.setTransform(escala, 0, 0, escala, 0, 0);
   canvas.hidden = false;
 
+  const largura = window.innerWidth;
+  const altura = window.innerHeight;
   const cores = ['#e6c15c', '#f4f1e8', '#6ee7a8', '#d0403c', '#7fb3ff'];
-  const particulas = Array.from({ length: 140 }, () => ({
-    x: Math.random() * canvas.width,
-    y: -20 - Math.random() * canvas.height * 0.4,
+  const particulas = Array.from({ length: largura < 600 ? 90 : 140 }, () => ({
+    x: Math.random() * largura,
+    y: -20 - Math.random() * altura * 0.4,
     vx: (Math.random() - 0.5) * 2.5,
     vy: 2 + Math.random() * 3.5,
     largura: 6 + Math.random() * 6,
@@ -683,7 +691,7 @@ function confete() {
     const passado = agora - inicio;
     const fade = Math.max(0, 1 - Math.max(0, passado - 2000) / 800);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, largura, altura);
 
     for (const p of particulas) {
       p.x += p.vx;
@@ -703,7 +711,7 @@ function confete() {
     if (passado < duracao) {
       requestAnimationFrame(quadro);
     } else {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, largura, altura);
       canvas.hidden = true;
     }
   }
@@ -761,8 +769,21 @@ ui.btnSom.addEventListener('click', () => {
   if (!som.mudo) som.clique();
 });
 
-// O navegador só libera áudio depois de um gesto do usuário.
-document.addEventListener('pointerdown', () => som.ativar(), { once: true });
+// O navegador só libera áudio depois de um gesto do usuário. O Safari do iPhone
+// só aceita touchend/click (touchstart não conta), e suspende o contexto sempre
+// que a aba sai de foco — por isso o desbloqueio é repetido a cada toque.
+for (const evento of ['touchend', 'pointerup', 'click', 'keydown']) {
+  document.addEventListener(evento, () => som.ativar(), { passive: true });
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') som.ativar();
+});
+
+// Vibração curta em quem tem (Android): estouro e vitória.
+function vibrar(padrao) {
+  if (typeof navigator.vibrate === 'function' && !movimentoReduzido) navigator.vibrate(padrao);
+}
 
 document.addEventListener('click', (evento) => {
   if (evento.target.closest('.btn') && evento.target.closest('.btn') !== ui.btnSom) som.clique();
