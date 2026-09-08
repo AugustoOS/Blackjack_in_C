@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blackjack Training</title>
+<meta name="description" content="Blackjack Training — versão web do jogo de Blackjack em C de Augusto Soares.">
+<meta name="theme-color" content="#0b3d2c">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🂡</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <h1 class="logo">Blackjack <span>Training</span></h1>
+    <button type="button" class="btn btn-ghost" id="btn-regras">Regras</button>
+  </header>
+
+  <main id="main">
+
+    <!-- ---------------------------------------------------------------- -->
+    <section class="tela tela-ativa" id="tela-inicio">
+      <div class="painel">
+        <p class="sobretitulo">Sejam bem-vindos!</p>
+        <h2>Vinte e Um, direto na mesa</h2>
+        <p class="texto">
+          Programa com o intuito de dar suporte a todos os jogadores profissionais e casuais
+          de Blackjack, mais conhecido como <strong>Vinte e Um</strong>. Mas todos são livres
+          para usá-lo até para aprender o jogo, se houver interesse.
+        </p>
+        <p class="texto">Boa sorte e divirtam-se!</p>
+
+        <form id="form-nome" class="form-nome" autocomplete="off">
+          <label for="input-nome">Digite seu nome</label>
+          <div class="linha-campo">
+            <input type="text" id="input-nome" name="nome" maxlength="20" placeholder="Jogador" required>
+            <button type="submit" class="btn btn-principal">Começar</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------- -->
+    <section class="tela" id="tela-opcoes">
+      <div class="painel">
+        <p class="sobretitulo">Prazer, <span id="saudacao-nome">jogador</span>!</p>
+        <h2>Escolha o desafio</h2>
+
+        <fieldset class="grupo">
+          <legend>Você deseja jogar uma melhor de três?</legend>
+          <div class="opcoes" role="radiogroup" aria-label="Melhor de três">
+            <label class="opcao">
+              <input type="radio" name="md3" value="sim" checked>
+              <span class="opcao-corpo"><strong>Sim</strong><small>Vence quem fizer 2 pontos</small></span>
+            </label>
+            <label class="opcao">
+              <input type="radio" name="md3" value="nao">
+              <span class="opcao-corpo"><strong>Não</strong><small>Rodada única</small></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="grupo">
+          <legend>Qual dificuldade você deseja?</legend>
+          <div class="opcoes" role="radiogroup" aria-label="Dificuldade">
+            <label class="opcao">
+              <input type="radio" name="dificuldade" value="facil">
+              <span class="opcao-corpo"><strong>Fácil</strong><small>O computador para em 14</small></span>
+            </label>
+            <label class="opcao">
+              <input type="radio" name="dificuldade" value="medio" checked>
+              <span class="opcao-corpo"><strong>Médio</strong><small>O computador para em 17</small></span>
+            </label>
+            <label class="opcao">
+              <input type="radio" name="dificuldade" value="dificil">
+              <span class="opcao-corpo"><strong>Difícil</strong><small>O computador para em 19</small></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="acoes">
+          <button type="button" class="btn btn-ghost" id="btn-voltar-inicio">Voltar</button>
+          <button type="button" class="btn btn-principal" id="btn-iniciar">Distribuir as cartas</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------------- -->
+    <section class="tela" id="tela-jogo">
+
+      <div class="placar" id="placar" hidden>
+        <span class="placar-lado"><b id="placar-nome">Você</b><em id="placar-p1">0</em></span>
+        <span class="placar-x">×</span>
+        <span class="placar-lado"><em id="placar-pc">0</em><b>Computador</b></span>
+        <span class="placar-tag" id="placar-tag">Melhor de três</span>
+      </div>
+
+      <div class="mesa">
+
+        <div class="lado" id="lado-pc">
+          <div class="lado-cabecalho">
+            <h3>Computador</h3>
+            <span class="valor" id="valor-pc" aria-live="polite">?</span>
+          </div>
+          <div class="cartas" id="cartas-pc" aria-label="Cartas do computador"></div>
+        </div>
+
+        <p class="mensagem" id="mensagem" role="status" aria-live="polite">Distribuindo as cartas...</p>
+
+        <div class="lado" id="lado-p1">
+          <div class="lado-cabecalho">
+            <h3 id="nome-jogador">Você</h3>
+            <span class="valor" id="valor-p1" aria-live="polite">0</span>
+          </div>
+          <div class="cartas" id="cartas-p1" aria-label="Suas cartas"></div>
+          <p class="contador" id="contador-compras">Compras: 0 de 5</p>
+        </div>
+
+      </div>
+
+      <div class="acoes acoes-jogo">
+        <button type="button" class="btn btn-principal" id="btn-comprar">Comprar carta</button>
+        <button type="button" class="btn btn-secundario" id="btn-parar">Parar</button>
+        <button type="button" class="btn btn-principal" id="btn-proxima" hidden>Próxima rodada</button>
+        <button type="button" class="btn btn-ghost" id="btn-sair" hidden>Novo jogo</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="rodape">
+    Feito por <strong>Augusto Soares</strong> ·
+    <a href="https://github.com/AugustoOS/Blackjack_in_C" rel="noopener">código-fonte em C no GitHub</a>
+  </footer>
+
+</div>
+
+<!-- ------------------------------------------------------------------ -->
+<dialog id="dialogo-regras" class="dialogo">
+  <div class="dialogo-topo">
+    <h2>Regras</h2>
+    <button type="button" class="btn btn-ghost" id="btn-fechar-regras" aria-label="Fechar regras">Fechar</button>
+  </div>
+  <div class="dialogo-corpo">
+    <ul>
+      <li>O objetivo é, a partir das cartas recebidas e compradas, chegar o mais perto possível de <strong>21</strong> sem ultrapassar esse valor.</li>
+      <li>O baralho tem <strong>52 cartas</strong>: A, 2, 3, 4, 5, 6, 7, 8, 9, 10, J, Q, K — cada uma em quatro naipes: espadas, paus, copas e ouros.</li>
+      <li>Os <strong>ases valem 1</strong> e <strong>10, J, Q e K valem 10</strong>.</li>
+      <li>No início da rodada cada um recebe <strong>2 cartas</strong> e, a partir daí, pode comprar mais.</li>
+      <li>Você pode comprar, no máximo, <strong>5 cartas</strong> por rodada.</li>
+      <li>Se achar que há um grande risco de passar de 21, pode encerrar suas jogadas de cara.</li>
+      <li>O computador joga primeiro; você só vê a pontuação dele ao finalizar suas jogadas.</li>
+      <li>Vence quem tiver a maior soma <strong>sem ultrapassar 21</strong>.</li>
+      <li>Se os dois tiverem a mesma soma, ou se os dois passarem de 21, ocorre <strong>empate</strong>.</li>
+    </ul>
+  </div>
+</dialog>
+
+<script src="game.js"></script>
+</body>
+</html>

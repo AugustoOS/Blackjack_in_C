@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <unistd.h>
 
 //---------------------------------------------------------------------------------------------------------------
 
@@ -28,11 +29,25 @@ void opcoes();
 
 //----------------------------------------------------------------------------------------------------------------
 
+#define BARALHO_INICIAL " A23456789DJQK A23456789DJQK A23456789DJQK A23456789DJQK"
+#define MAX_COMPRAS 5
+
 int placarP1 = 0, placarPC = 0;
 char dificuldade;
-// md3 representa se a opÁ„o de melhor de trÍs est· ativa ou n„o.
-char seunome[15], CSPC[15], CSP1[15], cartas[56] = " A23456789DJQK A23456789DJQK A23456789DJQK A23456789DJQK", md3;
-// CSP1 e CSPC s„o vetores que registram as cartas sorteadas pelos jogadores P1 E PC.
+// md3 representa se a op√ß√£o de melhor de tr√™s est√° ativa ou n√£o.
+char seunome[31], CSPC[57], CSP1[57], cartas[57] = BARALHO_INICIAL, md3;
+// CSP1 e CSPC s√£o vetores que registram as cartas sorteadas pelos jogadores P1 E PC.
+
+// Retorna 1 se ainda existe alguma carta dispon√≠vel no baralho.
+int temCarta(){
+
+	int i;
+
+	for (i = 0; i < 56; i++)
+		if (cartas[i] != '*' && cartas[i] != ' ') return 1;
+
+	return 0;
+}
 
 //----------------------------------------------------------------------------------------------------------------
 
@@ -45,7 +60,7 @@ int main(){
 	printf("------------------------------------------------- BLACKJACK TRAINING -------------------------------------------------\n\n\n");
 
 	printf("--- Sejam bem vindos! ---");
-	printf("\n\n\tPrograma com intuito de dar suporte ‡ todos os jogadores profissionais e casuais de BlackJack,\n\tmais conhecido como 'Vinte e Um'.\n\n\tContudo, todos s„o livres para us·-lo atÈ para aprender o jogo se houver interesse.");
+	printf("\n\n\tPrograma com intuito de dar suporte √† todos os jogadores profissionais e casuais de BlackJack,\n\tmais conhecido como 'Vinte e Um'.\n\n\tContudo, todos s√£o livres para us√°-lo at√© para aprender o jogo se houver interesse.");
 	printf("\n\n\tBoa sorte e divirtam-se!\n\n");
 
 	printf("\n----------------------------------------------------------------------------------------------------------------------\n\n");
@@ -67,9 +82,13 @@ int main(){
 void nome(){
 
 	printf("Digite seu nome: ");
-	gets(seunome);
 
-	printf("\nPrazer, %s! Esse È seu nome durante o jogo.\n\n", seunome);
+	if (fgets(seunome, sizeof(seunome), stdin) == NULL) seunome[0] = '\0';
+	seunome[strcspn(seunome, "\n")] = '\0';
+
+	if (seunome[0] == '\0') strcpy(seunome, "Jogador");
+
+	printf("\nPrazer, %s! Esse √© seu nome durante o jogo.\n\n", seunome);
 
 	printf("------------------------------------------\n\n");
 
@@ -78,7 +97,7 @@ void nome(){
 
 //----------------------------------------------------------------------------------------------------------------
 
-// OP«’ES PLAYER ----->
+// OP√á√ïES PLAYER ----->
 
 int menu(){
 
@@ -86,7 +105,7 @@ int menu(){
 
 	do{
 
-		printf("Para comeÁar o jogo, digite 1.\n\n");
+		printf("Para come√ßar o jogo, digite 1.\n\n");
 		printf("Para ver as regras do jogo e para aprender a jogar, digite 2.\n\n");
 		printf("Se quiser sair, digite 'S'.\n\n: ");
 		scanf(" %c", &opcao);
@@ -96,7 +115,7 @@ int menu(){
 	if (opcao == '2') regras();
 
 	else if (opcao == 'S' || opcao == 's'){
-		printf("\n\tAtÈ mais!");
+		printf("\n\tAt√© mais!");
 		return 0;
 
 	}else opcoes();
@@ -106,19 +125,19 @@ int menu(){
 
 //----------------------------------------------------------------------------------------------------------------
 
-// INSTRU«’ES ----->
+// INSTRU√á√ïES ----->
 
 void regras(){
 
 	int i;
 	char cartas[13] = "A23456789DJQK";
-	// SubstituÌ o 10 pelo Z, para ocupar somente um caracter.
+	// Substitu√≠ o 10 pelo Z, para ocupar somente um caracter.
 
 	printf("---REGRAS---\n");
 
 	sleep(1);
 
-	printf("\n--> O objetivo do jogo È, a partir das cartas recebidas e compradas, tentar chegar o mais perto possÌvel de 21 na soma\nsem ultrapassar esse valor. Ou seja, a soma deve resultar em, no m·ximo, 21 para a 'perfeiÁ„o' de sua jogada.");
+	printf("\n--> O objetivo do jogo √©, a partir das cartas recebidas e compradas, tentar chegar o mais perto poss√≠vel de 21 na soma\nsem ultrapassar esse valor. Ou seja, a soma deve resultar em, no m√°ximo, 21 para a 'perfei√ß√£o' de sua jogada.");
 	printf("\n\n--> O jogo possui 52 cartas: sendo elas em ordem: ");
 
 	sleep(1);
@@ -132,22 +151,22 @@ void regras(){
 	}
 
 	printf("\n--> Dessas listadas acima, cada uma tem 4 tipos diferentes: Espadas, Ouros, Paus e Copas.");
-	printf("\n\n--> Importante ressaltar que os ·ses valem 1 e J, Q e K valem 10.");
+	printf("\n\n--> Importante ressaltar que os √°ses valem 1 e J, Q e K valem 10.");
 
 	sleep(1);
 
-	printf("\n\n--> VocÍ joga contra uma ou mais pessoas. Nesse programa, vocÍ jogar· apenas contra uma, sendo ela o computador.");
-	printf("\n\n--> No inÌcio do jogo, cada um recebe 2 cartas, e daÌ por diante cada um pode optar por comprar mais cartas,\na fim de chegar o mais perto possÌvel da soma 21.");
+	printf("\n\n--> Voc√™ joga contra uma ou mais pessoas. Nesse programa, voc√™ jogar√° apenas contra uma, sendo ela o computador.");
+	printf("\n\n--> No in√≠cio do jogo, cada um recebe 2 cartas, e da√≠ por diante cada um pode optar por comprar mais cartas,\na fim de chegar o mais perto poss√≠vel da soma 21.");
 
 	sleep(1);
 
-	printf("\n\n--> Caso vocÍ conclua que j· h· um grande risco de, apÛs comprar uma nova carta j· com suas cartas iniciais,\n que vocÍ possa passar do 21, vocÍ pode finalizar suas jogadas logo de cara.");
-	printf("\n\n--> VocÍ poder· comprar, no m·ximo, 5 cartas.");
+	printf("\n\n--> Caso voc√™ conclua que j√° h√° um grande risco de, ap√≥s comprar uma nova carta j√° com suas cartas iniciais,\n que voc√™ possa passar do 21, voc√™ pode finalizar suas jogadas logo de cara.");
+	printf("\n\n--> Voc√™ poder√° comprar, no m√°ximo, 5 cartas.");
 
 	sleep(1);
 
-	printf("\n\n--> VocÍ sÛ ver· a pontuaÁ„o do seu(s) advers·rio(s) ao finalizar suas jogadas ao final da rodada.");
-	printf("\n\n--> Vence quem, no final, tiver uma soma maior que n„o ultrapassa 21.");
+	printf("\n\n--> Voc√™ s√≥ ver√° a pontua√ß√£o do seu(s) advers√°rio(s) ao finalizar suas jogadas ao final da rodada.");
+	printf("\n\n--> Vence quem, no final, tiver uma soma maior que n√£o ultrapassa 21.");
 
 	sleep(1);
 
@@ -182,9 +201,12 @@ int jogo(){
 
 void baralho(){
 
-	char cartas[56] = " A23456789DJQK A23456789DJQK A23456789DJQK A23456789DJQK";
-	// SubstituÌ o 10 pelo D, para ocupar somente um caracter.
+	// Substitu√≠ o 10 pelo D, para ocupar somente um caracter.
 	int i;
+
+	// Recomp√µe o baralho global: sem isso as cartas marcadas como usadas
+	// nunca voltavam e as rodadas seguintes jogavam com o baralho vazio.
+	strcpy(cartas, BARALHO_INICIAL);
 
 	printf("\n------------------------------------------\n");
 	sleep(1);
@@ -207,13 +229,13 @@ void baralho(){
 
 //----------------------------------------------------------------------------------------------------------------
 
-// FUN«√O QUE DISTRIBUI AS PRIMEIRAS CARTAS ----->
+// FUN√á√ÉO QUE DISTRIBUI AS PRIMEIRAS CARTAS ----->
 
 void distribuicao(){
 
-	// SubstituÌ o 10 pelo D, para ocupar somente um caracter.
+	// Substitu√≠ o 10 pelo D, para ocupar somente um caracter.
 	// c1 e c2 cartas do player, c3 e c4 do computador.
-	// AUX ‡ um minivetor auxiliar que "transporta" os char's de um vetor x para posteriormente concatenar em outro, a fim de som·-los e ter a soma das cartas.
+	// AUX √† um minivetor auxiliar que "transporta" os char's de um vetor x para posteriormente concatenar em outro, a fim de som√°-los e ter a soma das cartas.
 
 	sleep(2);
 	printf("\n\n\t Distribuindo as cartas...\n");
@@ -231,12 +253,12 @@ void distribuicao(){
 
 //----------------------------------------------------------------------------------------------------------------
 
-// FUN«√O QUE COMPRA AS CARTAS SEGUINTES ----->
+// FUN√á√ÉO QUE COMPRA AS CARTAS SEGUINTES ----->
 
 void compra(){
 
-	int a, i = 0, j = 0, valorPC = soma(CSPC), valorP1 = soma(CSP1), num;
-	char aux[2] = " \0", resposta;
+	int i = 0, j = 0, valorPC = soma(CSPC), valorP1 = soma(CSP1), num = 17;
+	char resposta;
 
 	if (dificuldade == 'f' || dificuldade == 'F') num = 14;
 	else if (dificuldade == 'm' || dificuldade == 'M')num = 17;
@@ -247,30 +269,14 @@ void compra(){
 	printf("\n\n--> JOGADA DO COMPUTADOR.\n");
 	sleep(1);
 
-	if (dificuldade == 'd' || dificuldade == 'D'){
-		while (valorPC < num){
-			
-			do a = (rand() % 56); while (cartas[a] != 'A' && cartas[a] != '2' && cartas[a] != '3' && cartas[a] != '4');
-
-			aux[0] = cartas[a];
-			strcat(CSPC, aux);
-			cartas[a] = '*';
-			i++;
-
-			valorPC = soma(CSPC);
-			//printf("%s\n", CSPC);
-			//printf("%d\n", valorPC);
-		}
-	}
-	else{ 
-		while (valorPC < num){
-			sorteiocarta(0);
-			valorPC = soma(CSPC);
-			i++;
-		}
+	// O sorteio sempre respeita as cartas j√° usadas e para quando o baralho acaba.
+	while (valorPC < num && temCarta()){
+		sorteiocarta(0);
+		valorPC = soma(CSPC);
+		i++;
 	}
 
-	printf("\nO computador comprou %d carta(s) e terminou suas jogadas. Agora È sua vez, %s!", i, seunome);
+	printf("\nO computador comprou %d carta(s) e terminou suas jogadas. Agora √© sua vez, %s!", i, seunome);
 
 	sleep(2);
 
@@ -279,12 +285,13 @@ void compra(){
 	printf("\n\n\n\n--> JOGADA DE %s.", seunome);
 	sleep(1);
 
-	printf("\n\n\tA soma das suas cartas atÈ agora È %d.\n", valorP1 = soma(CSP1));
+	printf("\n\n\tA soma das suas cartas at√© agora √© %d.\n", valorP1 = soma(CSP1));
 	sleep(1);
 
 	do{
-		printf("\n\n\tVocÍ deseja comprar mais uma carta? (S/N): ");
-		scanf(" %c", &resposta);
+		printf("\n\n\tVoc√™ deseja comprar mais uma carta? (S/N): ");
+
+		if (scanf(" %c", &resposta) != 1) resposta = 'n';
 
 		if (resposta == 's' || resposta == 'S'){
 
@@ -294,21 +301,24 @@ void compra(){
 
 			printf("\n\tAgora a soma da suas cartas %d", valorP1);
 
+			// A regra permite comprar no m√°ximo 5 cartas.
+			if (j == MAX_COMPRAS) printf("\n--> Voc√™ atingiu o limite de %d cartas compradas.", MAX_COMPRAS);
+
 		}else if (resposta == 'n' || resposta == 'N'){
 
 			valorP1 = soma(CSP1);
-			printf("\n--> VocÍ finalizou suas jogadas e o valor final de suas cartas È %d.", valorP1);
+			printf("\n--> Voc√™ finalizou suas jogadas e o valor final de suas cartas √© %d.", valorP1);
 
-		}else printf("\n--> Resposta n„o reconhecida.");
+		}else printf("\n--> Resposta n√£o reconhecida.");
 
-	} while (resposta != 'n' && resposta != 'N' && valorP1 < 21);
+	} while (resposta != 'n' && resposta != 'N' && valorP1 < 21 && j < MAX_COMPRAS && temCarta());
 	sleep(2);
 
 }
 
 //----------------------------------------------------------------------------------------------------------------
 
-// FUN«√O QUE DIZ QUEM GANHOU ----->
+// FUN√á√ÉO QUE DIZ QUEM GANHOU ----->
 
 int resultado(){
 
@@ -329,15 +339,17 @@ int resultado(){
 
 	if (valorP1 == valorPC || (valorP1 > 21 && valorPC > 21)){
 
-		if (valorP1 == valorPC) printf("\n\tVocÍs empataram! Ambos tiveram a soma de %d!", valorPC);
+		if (valorP1 == valorPC) printf("\n\tVoc√™s empataram! Ambos tiveram a soma de %d!", valorPC);
 
-		else if (valorP1 > 21 && valorPC > 21) printf("\n\tVocÍs empataram! Ambos ultrapasaram o valor 21. seu valor foi %d e o do computador %d.", valorP1, valorPC);
+		else if (valorP1 > 21 && valorPC > 21) printf("\n\tVoc√™s empataram! Ambos ultrapassaram o valor 21. Seu valor foi %d e o do computador %d.", valorP1, valorPC);
 
+		// No empate ningu√©m pontua: na melhor de tr√™s a rodada √© repetida.
+		if (md3 == 'S' || md3 == 's') jogo();
 	}
 
 	else if ((valorP1 > valorPC && valorP1 <= 21) || (valorP1 <= 21 && valorPC > 21)){
 
-		printf("\n\tVocÍ ganhou!");
+		printf("\n\tVoc√™ ganhou!");
 		sleep(1);
 		printf("\n\nO computador obteve a soma de cartas igual a %d, enquanto a sua foi de %d.", valorPC, valorP1);
 
@@ -345,7 +357,7 @@ int resultado(){
 			placarP1++;
 
 			if (placarP1 == 2){
-				printf("\n\nParabÈns!!! VocÍ ganhou a md3!");
+				printf("\n\nParab√©ns!!! Voc√™ ganhou a md3!");
 				playagain();
 			}else jogo();
 			
@@ -353,7 +365,7 @@ int resultado(){
 	}
 	else if ((valorP1 < valorPC && valorPC <= 21) || (valorPC <= 21 && valorP1 > 21)){
 
-		printf("\n\tVocÍ perdeu!");
+		printf("\n\tVoc√™ perdeu!");
 		sleep(1);
 		printf("\n\nO computador obteve a soma de cartas igual a %d, enquanto a sua foi de %d.", valorPC, valorP1);
 
@@ -361,7 +373,7 @@ int resultado(){
 			placarPC++;
 
 			if (placarPC == 2){
-				printf("\n\nQue pena... VocÍ perdeu a md3!");
+				printf("\n\nQue pena... Voc√™ perdeu a md3!");
 				playagain();
 			}else jogo();
 		}
@@ -375,7 +387,7 @@ int resultado(){
 
 //----------------------------------------------------------------------------------------------------------------
 
-// FUN«√O QUE SOMA AS CARTAS ----->
+// FUN√á√ÉO QUE SOMA AS CARTAS ----->
 
 int soma(char vetor[]){
 
@@ -402,12 +414,14 @@ int soma(char vetor[]){
 
 //----------------------------------------------------------------------------------------------------------------
 
-// FUN«√O QUE SORTEIA AS CARTAS DO PLAYER ----->
+// FUN√á√ÉO QUE SORTEIA AS CARTAS DO PLAYER ----->
 
 void sorteiocarta(int num){
 
 	int a;
-	char carta[7], aux[2] = " \0", naipe[8], E[8] = "espadas", P[5] = "paus", C[6] = "copas", O[6] = "ouros";
+	char carta[7] = "", aux[2] = " \0", naipe[8] = "", E[8] = "espadas", P[5] = "paus", C[6] = "copas", O[6] = "ouros";
+
+	if (!temCarta()) return;
 
 	do a = (rand() % 56); while (cartas[a] == '*' || cartas[a] == ' ');
 
@@ -423,10 +437,10 @@ void sorteiocarta(int num){
 			if(cartas[a] == 'Q') strcpy(carta,"dama");
 			if(cartas[a] == 'J') strcpy(carta,"valete");
 			if(cartas[a] == 'K') strcpy(carta,"rei");
-			if(cartas[a] == 'A') strcpy(carta,"·s");
-			printf("\n--> VocÍ recebeu um(a) %s de %s.\n\n", carta, naipe);
+			if(cartas[a] == 'A') strcpy(carta,"√°s");
+			printf("\n--> Voc√™ recebeu um(a) %s de %s.\n\n", carta, naipe);
 
-		}else printf("\n--> VocÍ recebeu um(a) %c de %s.\n\n", cartas[a], naipe);
+		}else printf("\n--> Voc√™ recebeu um(a) %c de %s.\n\n", cartas[a], naipe);
 		
 
 		aux[0] = cartas[a];
@@ -444,7 +458,7 @@ void sorteiocarta(int num){
 
 //----------------------------------------------------------------------------------------------------------------
 
-// FUN«√O PARA JOGAR NOVAMENTE ----->
+// FUN√á√ÉO PARA JOGAR NOVAMENTE ----->
 
 int playagain(){
 
@@ -464,7 +478,7 @@ int playagain(){
 	if (opcao == '1') opcoes();
 		
 	else{
-		printf("\n\n\tAtÈ mais!");
+		printf("\n\n\tAt√© mais!");
 		return 0;
 	}
 
@@ -475,11 +489,15 @@ int playagain(){
 
 //----------------------------------------------------------------------------------------------------------------
 
-// FUN«√O PARA DESAFIOS DO JOGO----->
+// FUN√á√ÉO PARA DESAFIOS DO JOGO----->
 
 void opcoes(){
 
-	printf("\n--> VocÍ deseja jogar uma melhor de trÍs? S/N: ");
+	// Zera o placar: sem isso o resultado da partida anterior continuava valendo.
+	placarP1 = 0;
+	placarPC = 0;
+
+	printf("\n--> Voc√™ deseja jogar uma melhor de tr√™s? S/N: ");
 	scanf(" %c", &md3);
 
 	if (md3 != 'S' && md3 != 's' && md3 != 'N' && md3 != 'n'){
@@ -500,7 +518,7 @@ void opcoes(){
 
 	do{
 
-		printf("\n\n--> Qual dificuldade vocÍ deseja? \nF¡CIL(F)\nM…DIO(M)\nDIFÕCIL(D) \n: ");
+		printf("\n\n--> Qual dificuldade voc√™ deseja? \nF√ÅCIL(F)\nM√âDIO(M)\nDIF√çCIL(D) \n: ");
 		scanf(" %c", &dificuldade);
 
 		printf("A dificuldade escolhida foi '%c'.\n", dificuldade);
