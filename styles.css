@@ -3,11 +3,12 @@
   --feltro-escuro: #06251b;
   --feltro-claro: #12604a;
   --ouro: #e6c15c;
-  --ouro-suave: #f2ddA0;
+  --ouro-suave: #f2dda0;
   --creme: #f4f1e8;
   --texto: #eef3ef;
   --texto-fraco: #a9c2b6;
   --vermelho: #d0403c;
+  --verde-vivo: #6ee7a8;
   --preto-carta: #1c1c1c;
   --sombra: 0 18px 40px rgba(0, 0, 0, .45);
   --raio: 14px;
@@ -47,6 +48,8 @@ body {
   padding-bottom: 18px;
   border-bottom: 1px solid rgba(230, 193, 92, .22);
 }
+
+.topbar-acoes { display: flex; gap: 8px; align-items: center; }
 
 .logo {
   margin: 0;
@@ -145,7 +148,7 @@ input[type="text"]:focus-visible {
 
 .opcoes { display: flex; gap: 10px; flex-wrap: wrap; }
 
-.opcao { flex: 1 1 150px; cursor: pointer; }
+.opcao { flex: 1 1 150px; cursor: pointer; position: relative; }
 .opcao input { position: absolute; opacity: 0; pointer-events: none; }
 
 .opcao-corpo {
@@ -181,12 +184,33 @@ input[type="text"]:focus-visible {
 }
 
 .btn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.07); }
+.btn:active:not(:disabled) { transform: translateY(0) scale(.97); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn:focus-visible { outline: 2px solid var(--ouro); outline-offset: 2px; }
 
 .btn-principal { background: var(--ouro); color: #23180a; }
 .btn-secundario { background: rgba(255, 255, 255, .12); color: var(--texto); border-color: rgba(255, 255, 255, .25); }
 .btn-ghost { background: transparent; color: var(--texto-fraco); border-color: rgba(230, 193, 92, .35); }
+
+.btn-icone {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.btn kbd {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font: 600 .7rem/1.4 inherit;
+  font-family: inherit;
+  border-radius: 5px;
+  border: 1px solid currentColor;
+  opacity: .55;
+  vertical-align: 1px;
+}
 
 .acoes { display: flex; gap: 12px; flex-wrap: wrap; }
 .acoes-jogo { justify-content: center; margin-top: 26px; }
@@ -206,8 +230,9 @@ input[type="text"]:focus-visible {
 .placar-lado { display: flex; align-items: center; gap: 8px; }
 .placar-lado em { font-style: normal; font-size: 1.5rem; font-weight: 700; color: var(--ouro); }
 .placar-x { color: var(--texto-fraco); }
+.placar.sem-md3 [data-md3] { display: none; }
 
-.placar-tag {
+.tag {
   font-size: .7rem;
   text-transform: uppercase;
   letter-spacing: .14em;
@@ -217,14 +242,26 @@ input[type="text"]:focus-visible {
   padding: 3px 10px;
 }
 
+.tag-dificil { color: #ff9f9c; border-color: rgba(208, 64, 60, .5); }
+
 /* --------------------------------------------------------------- mesa */
 
 .mesa {
+  position: relative;
   background: rgba(3, 26, 19, .5);
   border: 1px solid rgba(230, 193, 92, .18);
   border-radius: var(--raio);
   box-shadow: var(--sombra);
   padding: clamp(16px, 3.5vw, 28px);
+  transition: box-shadow .4s;
+}
+
+.mesa.vitoria { box-shadow: 0 0 0 2px var(--ouro), 0 0 40px rgba(230, 193, 92, .35), var(--sombra); }
+.mesa.derrota { animation: vinheta-vermelha 1.2s ease; }
+
+@keyframes vinheta-vermelha {
+  0%, 100% { box-shadow: var(--sombra); }
+  30% { box-shadow: inset 0 0 80px rgba(208, 64, 60, .45), var(--sombra); }
 }
 
 .lado + .lado { margin-top: 4px; }
@@ -235,6 +272,7 @@ input[type="text"]:focus-visible {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 10px;
+  padding-right: 70px;
 }
 
 .lado-cabecalho h3 {
@@ -251,10 +289,28 @@ input[type="text"]:focus-visible {
   color: var(--ouro);
   min-width: 2ch;
   text-align: right;
+  white-space: nowrap;
+}
+
+.valor.pulsa { animation: pulsa .35s ease; }
+
+@keyframes pulsa {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.3); }
+  100% { transform: scale(1); }
 }
 
 .lado.estourou .valor { color: var(--vermelho); }
-.lado.vencedor .valor { color: #6ee7a8; }
+.lado.estourou .cartas { animation: treme .5s ease; }
+.lado.vencedor .valor { color: var(--verde-vivo); }
+
+@keyframes treme {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px) rotate(-1deg); }
+  40% { transform: translateX(8px) rotate(1deg); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
 
 .cartas {
   display: flex;
@@ -264,11 +320,25 @@ input[type="text"]:focus-visible {
   align-items: center;
 }
 
-.contador {
-  margin: 10px 0 0;
+.rodape-mao {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.contador,
+.dica {
+  margin: 0;
   font-size: .8rem;
   color: var(--texto-fraco);
 }
+
+.dica { font-weight: 600; transition: color .3s; }
+.dica.baixo { color: var(--verde-vivo); }
+.dica.medio { color: var(--ouro); }
+.dica.alto { color: #ff9f9c; }
 
 .mensagem {
   margin: 20px 0;
@@ -282,9 +352,70 @@ input[type="text"]:focus-visible {
   justify-content: center;
 }
 
+.mensagem.pop { animation: pop .3s ease; }
+
+@keyframes pop {
+  0% { transform: scale(.96); opacity: .4; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 .mensagem.destaque { color: var(--ouro-suave); font-weight: 600; }
 .mensagem.derrota { color: #ff9f9c; font-weight: 600; }
 .mensagem.vitoria { color: #7ff0b3; font-weight: 600; }
+
+.mensagem.pensando::after {
+  content: "";
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+  animation: pontos 1.2s steps(1) infinite;
+}
+
+@keyframes pontos {
+  0% { content: ""; }
+  25% { content: "."; }
+  50% { content: ".."; }
+  75% { content: "..."; }
+}
+
+/* ------------------------------------------------------------- baralho */
+
+.baralho {
+  position: absolute;
+  top: clamp(16px, 3.5vw, 28px);
+  right: clamp(16px, 3.5vw, 28px);
+  width: 52px;
+  height: 74px;
+}
+
+.baralho-carta {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: repeating-linear-gradient(45deg, #8d2b30 0 5px, #6f1f24 5px 10px);
+  border: 2px solid var(--creme);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .4);
+}
+
+.baralho-carta:nth-child(2) { transform: translate(-3px, -3px); }
+.baralho-carta:nth-child(3) { transform: translate(-6px, -6px); }
+
+.baralho.vazio .baralho-carta { opacity: .25; }
+
+.baralho-contador {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  min-width: 24px;
+  padding: 2px 6px;
+  font-size: .7rem;
+  font-weight: 700;
+  text-align: center;
+  color: #23180a;
+  background: var(--ouro);
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+}
 
 /* -------------------------------------------------------------- cartas */
 
@@ -293,12 +424,13 @@ input[type="text"]:focus-visible {
   height: 112px;
   perspective: 700px;
   flex: none;
-  animation: entrada .3s ease both;
 }
 
-@keyframes entrada {
-  from { opacity: 0; transform: translateY(-14px) scale(.9); }
-  to   { opacity: 1; transform: none; }
+.carta.voando { animation: voa .45s cubic-bezier(.2, .8, .3, 1) both; }
+
+@keyframes voa {
+  from { transform: translate(var(--dx, 0px), var(--dy, 0px)) rotate(-10deg) scale(.8); opacity: .5; }
+  to   { transform: none; opacity: 1; }
 }
 
 .carta-interna {
@@ -338,9 +470,19 @@ input[type="text"]:focus-visible {
 
 .carta-verso {
   transform: rotateY(180deg);
-  background:
-    repeating-linear-gradient(45deg, #8d2b30 0 6px, #6f1f24 6px 12px);
+  background: repeating-linear-gradient(45deg, #8d2b30 0 6px, #6f1f24 6px 12px);
   border: 3px solid var(--creme);
+}
+
+/* ------------------------------------------------------------- confete */
+
+.confete {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 50;
 }
 
 /* ------------------------------------------------------------- diálogo */
@@ -373,6 +515,15 @@ input[type="text"]:focus-visible {
 .dialogo-corpo li { margin-bottom: 10px; color: var(--texto-fraco); }
 .dialogo-corpo strong { color: var(--texto); }
 
+.dialogo-corpo kbd {
+  padding: 1px 6px;
+  font-family: inherit;
+  font-size: .8em;
+  border: 1px solid rgba(230, 193, 92, .4);
+  border-radius: 5px;
+  color: var(--texto);
+}
+
 /* -------------------------------------------------------------- rodapé */
 
 .rodape {
@@ -393,6 +544,13 @@ input[type="text"]:focus-visible {
   .carta-naipe-grande { font-size: 1.3rem; }
   .cartas { min-height: 94px; gap: 8px; }
   .acoes-jogo .btn { flex: 1 1 140px; }
+  .btn kbd { display: none; }
+  .baralho { width: 40px; height: 56px; }
+  .lado-cabecalho { padding-right: 52px; }
+}
+
+@media (hover: none) {
+  .btn kbd { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

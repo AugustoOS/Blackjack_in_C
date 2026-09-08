@@ -15,7 +15,10 @@
 
   <header class="topbar">
     <h1 class="logo">Blackjack <span>Training</span></h1>
-    <button type="button" class="btn btn-ghost" id="btn-regras">Regras</button>
+    <div class="topbar-acoes">
+      <button type="button" class="btn btn-ghost btn-icone" id="btn-som" aria-pressed="false" title="Ligar ou desligar o som">🔊</button>
+      <button type="button" class="btn btn-ghost" id="btn-regras">Regras</button>
+    </div>
   </header>
 
   <main id="main">
@@ -67,15 +70,15 @@
           <div class="opcoes" role="radiogroup" aria-label="Dificuldade">
             <label class="opcao">
               <input type="radio" name="dificuldade" value="facil">
-              <span class="opcao-corpo"><strong>Fácil</strong><small>O computador para em 14</small></span>
+              <span class="opcao-corpo"><strong>Fácil</strong><small>Ele joga primeiro, de cartas abertas, e para em 14.</small></span>
             </label>
             <label class="opcao">
               <input type="radio" name="dificuldade" value="medio" checked>
-              <span class="opcao-corpo"><strong>Médio</strong><small>O computador para em 17</small></span>
+              <span class="opcao-corpo"><strong>Médio</strong><small>Uma carta escondida. Ele para em 17.</small></span>
             </label>
             <label class="opcao">
               <input type="radio" name="dificuldade" value="dificil">
-              <span class="opcao-corpo"><strong>Difícil</strong><small>O computador para em 19</small></span>
+              <span class="opcao-corpo"><strong>Difícil</strong><small>Conta as cartas e joga para bater a sua mão.</small></span>
             </label>
           </div>
         </fieldset>
@@ -90,14 +93,22 @@
     <!-- ---------------------------------------------------------------- -->
     <section class="tela" id="tela-jogo">
 
-      <div class="placar" id="placar" hidden>
-        <span class="placar-lado"><b id="placar-nome">Você</b><em id="placar-p1">0</em></span>
-        <span class="placar-x">×</span>
-        <span class="placar-lado"><em id="placar-pc">0</em><b>Computador</b></span>
-        <span class="placar-tag" id="placar-tag">Melhor de três</span>
+      <div class="placar" id="placar">
+        <span class="placar-lado" data-md3><b id="placar-nome">Você</b><em id="placar-p1">0</em></span>
+        <span class="placar-x" data-md3>×</span>
+        <span class="placar-lado" data-md3><em id="placar-pc">0</em><b>Computador</b></span>
+        <span class="tag" id="tag-md3" data-md3>Melhor de três</span>
+        <span class="tag" id="tag-dificuldade">Médio</span>
       </div>
 
-      <div class="mesa">
+      <div class="mesa" id="mesa">
+
+        <div class="baralho" id="baralho" aria-hidden="true">
+          <div class="baralho-carta"></div>
+          <div class="baralho-carta"></div>
+          <div class="baralho-carta"></div>
+          <span class="baralho-contador" id="baralho-contador">52</span>
+        </div>
 
         <div class="lado" id="lado-pc">
           <div class="lado-cabecalho">
@@ -115,15 +126,18 @@
             <span class="valor" id="valor-p1" aria-live="polite">0</span>
           </div>
           <div class="cartas" id="cartas-p1" aria-label="Suas cartas"></div>
-          <p class="contador" id="contador-compras">Compras: 0 de 5</p>
+          <div class="rodape-mao">
+            <p class="contador" id="contador-compras">Compras: 0 de 5</p>
+            <p class="dica" id="dica"></p>
+          </div>
         </div>
 
       </div>
 
       <div class="acoes acoes-jogo">
-        <button type="button" class="btn btn-principal" id="btn-comprar">Comprar carta</button>
-        <button type="button" class="btn btn-secundario" id="btn-parar">Parar</button>
-        <button type="button" class="btn btn-principal" id="btn-proxima" hidden>Próxima rodada</button>
+        <button type="button" class="btn btn-principal" id="btn-comprar">Comprar carta <kbd>C</kbd></button>
+        <button type="button" class="btn btn-secundario" id="btn-parar">Parar <kbd>P</kbd></button>
+        <button type="button" class="btn btn-principal" id="btn-proxima" hidden>Próxima rodada <kbd>N</kbd></button>
         <button type="button" class="btn btn-ghost" id="btn-sair" hidden>Novo jogo</button>
       </div>
 
@@ -138,6 +152,8 @@
 
 </div>
 
+<canvas class="confete" id="confete" hidden aria-hidden="true"></canvas>
+
 <!-- ------------------------------------------------------------------ -->
 <dialog id="dialogo-regras" class="dialogo">
   <div class="dialogo-topo">
@@ -149,12 +165,13 @@
       <li>O objetivo é, a partir das cartas recebidas e compradas, chegar o mais perto possível de <strong>21</strong> sem ultrapassar esse valor.</li>
       <li>O baralho tem <strong>52 cartas</strong>: A, 2, 3, 4, 5, 6, 7, 8, 9, 10, J, Q, K — cada uma em quatro naipes: espadas, paus, copas e ouros.</li>
       <li>Os <strong>ases valem 1</strong> e <strong>10, J, Q e K valem 10</strong>.</li>
-      <li>No início da rodada cada um recebe <strong>2 cartas</strong> e, a partir daí, pode comprar mais.</li>
-      <li>Você pode comprar, no máximo, <strong>5 cartas</strong> por rodada.</li>
-      <li>Se achar que há um grande risco de passar de 21, pode encerrar suas jogadas de cara.</li>
-      <li>O computador joga primeiro; você só vê a pontuação dele ao finalizar suas jogadas.</li>
-      <li>Vence quem tiver a maior soma <strong>sem ultrapassar 21</strong>.</li>
-      <li>Se os dois tiverem a mesma soma, ou se os dois passarem de 21, ocorre <strong>empate</strong>.</li>
+      <li>No início da rodada cada um recebe <strong>2 cartas</strong>. Você joga primeiro e pode comprar, no máximo, <strong>5 cartas</strong>.</li>
+      <li>Se achar que há um grande risco de passar de 21, pode parar de cara. A linha <em>risco de estourar</em> mostra a chance de a próxima carta passar de 21, contando só as cartas que você ainda não viu.</li>
+      <li><strong>Fácil:</strong> o computador joga primeiro, de cartas abertas, e compra até chegar a 14. Você sabe exatamente o valor que precisa bater.</li>
+      <li><strong>Médio:</strong> uma carta dele fica escondida. Depois que você para, ele a revela e compra até chegar a 17, como um crupiê de cassino.</li>
+      <li><strong>Difícil:</strong> ele conhece a sua soma final, conta as cartas que já saíram e só compra quando precisa bater você — se você estourar, ele nem arrisca.</li>
+      <li>Vence quem tiver a maior soma <strong>sem ultrapassar 21</strong>. Se os dois tiverem a mesma soma, ou se os dois passarem de 21, ocorre <strong>empate</strong>.</li>
+      <li>Atalhos: <kbd>C</kbd> compra, <kbd>P</kbd> para, <kbd>N</kbd> próxima rodada.</li>
     </ul>
   </div>
 </dialog>

@@ -31,7 +31,16 @@ const FIGURAS = [
   { rotulo: 'K', valor: 10, nome: 'rei' },
 ];
 
-const PARADA_PC = { facil: 14, medio: 17, dificil: 19 };
+// parada: o computador compra enquanto estiver abaixo desse valor.
+// computadorPrimeiro: ele faz as jogadas dele antes de você, de cartas abertas,
+// então você sabe exatamente o que precisa bater.
+// contaCartas: em vez de um valor fixo, ele joga contra a sua soma final e
+// mede o risco de estourar pelas cartas que ainda restam no baralho.
+const DIFICULDADES = {
+  facil: { nome: 'Fácil', parada: 14, cartaOculta: false, computadorPrimeiro: true, contaCartas: false },
+  medio: { nome: 'Médio', parada: 17, cartaOculta: true, computadorPrimeiro: false, contaCartas: false },
+  dificil: { nome: 'Difícil', parada: null, cartaOculta: true, computadorPrimeiro: false, contaCartas: true },
+};
 
 const estado = {
   nome: 'Jogador',
@@ -42,6 +51,9 @@ const estado = {
   maoP1: [],
   maoPC: [],
   compras: 0,
+  compradasPC: 0,
+  ocultaPC: false,
+  vezDoJogador: false,
   emAnimacao: false,
 };
 
@@ -60,11 +72,16 @@ const ui = {
   btnSair: el('btn-sair'),
   btnRegras: el('btn-regras'),
   btnFecharRegras: el('btn-fechar-regras'),
+  btnSom: el('btn-som'),
   dialogo: el('dialogo-regras'),
   placar: el('placar'),
   placarNome: el('placar-nome'),
   placarP1: el('placar-p1'),
   placarPC: el('placar-pc'),
+  tagDificuldade: el('tag-dificuldade'),
+  mesa: el('mesa'),
+  baralho: el('baralho'),
+  baralhoContador: el('baralho-contador'),
   ladoP1: el('lado-p1'),
   ladoPC: el('lado-pc'),
   cartasP1: el('cartas-p1'),
@@ -73,12 +90,96 @@ const ui = {
   valorPC: el('valor-pc'),
   nomeJogador: el('nome-jogador'),
   contador: el('contador-compras'),
+  dica: el('dica'),
   mensagem: el('mensagem'),
+  confete: el('confete'),
 };
+
+const movimentoReduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ------------------------------------------------------------------- som
+// Todos os sons são sintetizados na hora com a Web Audio API: nenhum arquivo
+// externo, nada para carregar.
+
+const som = (() => {
+  let ctx = null;
+  let mudo = false;
+
+  try { mudo = localStorage.getItem('bj-mudo') === '1'; } catch (_) { /* sem storage */ }
+
+  function contexto() {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    if (!ctx) ctx = new Ctx();
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  function tom(freq, inicio, duracao, { tipo = 'sine', volume = 0.16 } = {}) {
+    const c = contexto();
+    if (!c || mudo) return;
+
+    const t = c.currentTime + inicio;
+    const osc = c.createOscillator();
+    const ganho = c.createGain();
+
+    osc.type = tipo;
+    osc.frequency.setValueAtTime(freq, t);
+    ganho.gain.setValueAtTime(0.0001, t);
+    ganho.gain.exponentialRampToValueAtTime(volume, t + 0.012);
+    ganho.gain.exponentialRampToValueAtTime(0.0001, t + duracao);
+
+    osc.connect(ganho).connect(c.destination);
+    osc.start(t);
+    osc.stop(t + duracao + 0.05);
+  }
+
+  function ruido(duracao, { frequencia = 1800, volume = 0.2 } = {}) {
+    const c = contexto();
+    if (!c || mudo) return;
+
+    const amostras = Math.floor(c.sampleRate * duracao);
+    const buffer = c.createBuffer(1, amostras, c.sampleRate);
+    const dados = buffer.getChannelData(0);
+
+    for (let i = 0; i < amostras; i++) dados[i] = (Math.random() * 2 - 1) * (1 - i / amostras);
+
+    const fonte = c.createBufferSource();
+    const filtro = c.createBiquadFilter();
+    const ganho = c.createGain();
+
+    fonte.buffer = buffer;
+    filtro.type = 'bandpass';
+    filtro.frequency.value = frequencia;
+    filtro.Q.value = 0.8;
+    ganho.gain.value = volume;
+
+    fonte.connect(filtro).connect(ganho).connect(c.destination);
+    fonte.start();
+  }
+
+  return {
+    get mudo() { return mudo; },
+    ativar() { contexto(); },
+    alternar() {
+      mudo = !mudo;
+      try { localStorage.setItem('bj-mudo', mudo ? '1' : '0'); } catch (_) { /* sem storage */ }
+      return mudo;
+    },
+    carta() { ruido(0.09, { frequencia: 2400, volume: 0.22 }); },
+    virar() { ruido(0.07, { frequencia: 1200, volume: 0.18 }); tom(880, 0.06, 0.1, { tipo: 'triangle', volume: 0.07 }); },
+    clique() { tom(640, 0, 0.05, { tipo: 'square', volume: 0.04 }); },
+    estouro() { tom(220, 0, 0.35, { tipo: 'sawtooth', volume: 0.13 }); tom(150, 0.14, 0.45, { tipo: 'sawtooth', volume: 0.13 }); },
+    vitoria() { [523, 659, 784, 1047].forEach((f, i) => tom(f, i * 0.11, 0.28, { tipo: 'triangle' })); },
+    derrota() { [330, 262, 196].forEach((f, i) => tom(f, i * 0.2, 0.4, { tipo: 'triangle', volume: 0.13 })); },
+    empate() { [440, 440].forEach((f, i) => tom(f, i * 0.18, 0.18, { tipo: 'triangle', volume: 0.11 })); },
+    fanfarra() { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tom(f, i * 0.12, 0.32, { tipo: 'triangle' })); },
+  };
+})();
 
 // ------------------------------------------------------------- utilidades
 
-const espera = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const espera = (ms) => new Promise((resolve) => setTimeout(resolve, movimentoReduzido ? Math.min(ms, 120) : ms));
 
 function mostrarTela(id) {
   ui.telas.forEach((tela) => tela.classList.toggle('tela-ativa', tela.id === id));
@@ -87,7 +188,18 @@ function mostrarTela(id) {
 function mensagem(texto, tipo = '') {
   ui.mensagem.textContent = texto;
   ui.mensagem.className = `mensagem${tipo ? ` ${tipo}` : ''}`;
+  // Reinicia a animação mesmo quando a classe já estava aplicada.
+  void ui.mensagem.offsetWidth;
+  ui.mensagem.classList.add('pop');
 }
+
+function pulsar(elemento) {
+  elemento.classList.remove('pulsa');
+  void elemento.offsetWidth;
+  elemento.classList.add('pulsa');
+}
+
+const porcentagem = (p) => `${Math.round(p * 100)}%`;
 
 // ---------------------------------------------------------------- baralho
 
@@ -111,11 +223,22 @@ function criarBaralho() {
 
 const soma = (mao) => mao.reduce((total, carta) => total + carta.valor, 0);
 
+// Chance de a próxima carta estourar a mão, olhando só para as cartas listadas.
+function riscoDeEstouro(mao, cartasDesconhecidas) {
+  if (cartasDesconhecidas.length === 0) return 0;
+
+  const folga = LIMITE - soma(mao);
+  const ruins = cartasDesconhecidas.filter((carta) => carta.valor > folga).length;
+
+  return ruins / cartasDesconhecidas.length;
+}
+
 function comprarCarta(mao) {
   if (estado.baralho.length === 0) return null;
 
   const carta = estado.baralho.pop();
   mao.push(carta);
+  atualizarBaralho();
 
   return carta;
 }
@@ -125,8 +248,9 @@ function comprarCarta(mao) {
 function elementoCarta(carta, oculta) {
   const div = document.createElement('div');
   div.className = `carta${oculta ? ' oculta' : ''}`;
+  div.dataset.nome = `${carta.nome} de ${carta.naipe.nome}`;
   div.setAttribute('role', 'img');
-  div.setAttribute('aria-label', oculta ? 'carta virada para baixo' : `${carta.nome} de ${carta.naipe.nome}`);
+  div.setAttribute('aria-label', oculta ? 'carta virada para baixo' : div.dataset.nome);
 
   const interna = document.createElement('div');
   interna.className = 'carta-interna';
@@ -147,24 +271,98 @@ function elementoCarta(carta, oculta) {
   return div;
 }
 
-function desenharMao(container, mao, ocultas) {
-  container.replaceChildren();
-  mao.forEach((carta) => container.append(elementoCarta(carta, ocultas)));
+// Coloca a carta na mão e a faz "voar" a partir do monte do baralho.
+function adicionarCarta(container, carta, oculta) {
+  const elemento = elementoCarta(carta, oculta);
+  container.append(elemento);
+
+  const origem = ui.baralho.getBoundingClientRect();
+  const destino = elemento.getBoundingClientRect();
+
+  elemento.style.setProperty('--dx', `${origem.left - destino.left}px`);
+  elemento.style.setProperty('--dy', `${origem.top - destino.top}px`);
+  elemento.classList.add('voando');
+
+  som.carta();
+
+  return elemento;
+}
+
+function revelarCartaOculta() {
+  const elemento = ui.cartasPC.querySelector('.carta.oculta');
+  if (!elemento) return;
+
+  elemento.classList.remove('oculta');
+  elemento.setAttribute('aria-label', elemento.dataset.nome);
+  estado.ocultaPC = false;
+  som.virar();
+}
+
+// ------------------------------------------------------------------- tela
+
+function atualizarBaralho() {
+  ui.baralhoContador.textContent = estado.baralho.length;
+  ui.baralho.classList.toggle('vazio', estado.baralho.length === 0);
 }
 
 function atualizarPlacar() {
-  ui.placar.hidden = !estado.md3;
+  ui.placar.classList.toggle('sem-md3', !estado.md3);
   ui.placarNome.textContent = estado.nome;
   ui.placarP1.textContent = estado.placar.p1;
   ui.placarPC.textContent = estado.placar.pc;
+
+  const dif = DIFICULDADES[estado.dificuldade];
+  ui.tagDificuldade.textContent = dif.nome;
+  ui.tagDificuldade.classList.toggle('tag-dificil', dif.contaCartas);
 }
 
 function atualizarJogador() {
   const valor = soma(estado.maoP1);
+  const mudou = ui.valorP1.textContent !== String(valor);
 
   ui.valorP1.textContent = valor;
+  if (mudou) pulsar(ui.valorP1);
+
   ui.ladoP1.classList.toggle('estourou', valor > LIMITE);
   ui.contador.textContent = `Compras: ${estado.compras} de ${MAX_COMPRAS}`;
+
+  atualizarDica();
+}
+
+// A dica conta só o que você não viu: o baralho e a carta escondida do computador.
+function atualizarDica() {
+  const valor = soma(estado.maoP1);
+
+  if (!estado.vezDoJogador || valor >= LIMITE) {
+    ui.dica.textContent = '';
+    ui.dica.className = 'dica';
+    return;
+  }
+
+  const desconhecidas = estado.ocultaPC ? [...estado.baralho, estado.maoPC[1]] : estado.baralho;
+  const risco = riscoDeEstouro(estado.maoP1, desconhecidas);
+  const nivel = risco < 0.3 ? 'baixo' : risco < 0.6 ? 'medio' : 'alto';
+
+  ui.dica.textContent = `Risco de estourar na próxima carta: ${porcentagem(risco)}`;
+  ui.dica.className = `dica ${nivel}`;
+}
+
+function atualizarComputador() {
+  let texto;
+
+  if (estado.ocultaPC) {
+    const visiveis = estado.maoPC.filter((_, i) => i !== 1);
+    texto = `${soma(visiveis)} + ?`;
+  } else {
+    texto = String(soma(estado.maoPC));
+  }
+
+  if (ui.valorPC.textContent !== texto) {
+    ui.valorPC.textContent = texto;
+    pulsar(ui.valorPC);
+  }
+
+  ui.ladoPC.classList.toggle('estourou', !estado.ocultaPC && soma(estado.maoPC) > LIMITE);
 }
 
 function habilitarJogadas(ativo) {
@@ -182,69 +380,78 @@ function habilitarJogadas(ativo) {
 // ------------------------------------------------------------- fluxo do jogo
 
 async function iniciarRodada() {
+  const dif = DIFICULDADES[estado.dificuldade];
+
   estado.baralho = criarBaralho();
   estado.maoP1 = [];
   estado.maoPC = [];
   estado.compras = 0;
+  estado.compradasPC = 0;
+  estado.ocultaPC = dif.cartaOculta;
+  estado.vezDoJogador = false;
   estado.emAnimacao = true;
 
   ui.nomeJogador.textContent = estado.nome;
   ui.ladoP1.className = 'lado';
   ui.ladoPC.className = 'lado';
+  ui.mesa.className = 'mesa';
   ui.valorPC.textContent = '?';
+  ui.valorP1.textContent = '0';
   ui.cartasP1.replaceChildren();
   ui.cartasPC.replaceChildren();
 
+  atualizarBaralho();
   atualizarPlacar();
   atualizarJogador();
   habilitarJogadas(false);
   mostrarTela('tela-jogo');
   mensagem('Distribuindo as cartas...');
 
-  // Duas cartas para cada lado, alternadas, como na distribuição original.
+  // Duas cartas para cada lado, alternadas: a segunda do computador pode ficar escondida.
   for (let i = 0; i < 4; i++) {
     await espera(420);
 
     if (i % 2 === 0) {
-      comprarCarta(estado.maoP1);
-      desenharMao(ui.cartasP1, estado.maoP1, false);
+      const carta = comprarCarta(estado.maoP1);
+      adicionarCarta(ui.cartasP1, carta, false);
       atualizarJogador();
     } else {
-      comprarCarta(estado.maoPC);
-      desenharMao(ui.cartasPC, estado.maoPC, true);
+      const carta = comprarCarta(estado.maoPC);
+      adicionarCarta(ui.cartasPC, carta, i === 3 && dif.cartaOculta);
+      atualizarComputador();
     }
   }
 
-  await jogadaComputador();
-}
+  await espera(300);
 
-async function jogadaComputador() {
-  const parada = PARADA_PC[estado.dificuldade];
-  let compradas = 0;
+  let aviso;
 
-  mensagem('Jogada do computador...');
-  await espera(700);
+  if (dif.computadorPrimeiro) {
+    // Fácil: o computador joga antes, de cartas abertas, e você sabe o alvo.
+    mensagem('Vez do computador', 'pensando');
+    await espera(600);
+    await comprasDoComputador(dif, null);
 
-  while (soma(estado.maoPC) < parada && estado.baralho.length > 0) {
-    comprarCarta(estado.maoPC);
-    desenharMao(ui.cartasPC, estado.maoPC, true);
-    compradas++;
-    await espera(450);
+    const valorPC = soma(estado.maoPC);
+
+    aviso = valorPC > LIMITE
+      ? `O computador estourou com ${valorPC}! Sua vez, ${estado.nome}: basta parar sem estourar.`
+      : `O computador parou em ${valorPC}. Sua vez, ${estado.nome}: bata esse valor!`;
+  } else if (dif.cartaOculta) {
+    aviso = `Sua vez, ${estado.nome}! O computador mostra ${soma([estado.maoPC[0]])} e guarda uma carta.`;
+  } else {
+    aviso = `Sua vez, ${estado.nome}! O computador está com ${soma(estado.maoPC)}.`;
   }
 
-  const plural = compradas === 1 ? 'carta' : 'cartas';
-
-  mensagem(
-    `O computador comprou ${compradas} ${plural} e terminou suas jogadas. Agora é sua vez, ${estado.nome}!`,
-    'destaque',
-  );
-
+  estado.vezDoJogador = true;
   estado.emAnimacao = false;
+  atualizarJogador();
+  mensagem(aviso, 'destaque');
   habilitarJogadas(true);
 }
 
 function comprar() {
-  if (estado.emAnimacao || estado.compras >= MAX_COMPRAS) return;
+  if (estado.emAnimacao || !estado.vezDoJogador || estado.compras >= MAX_COMPRAS) return;
 
   const carta = comprarCarta(estado.maoP1);
 
@@ -255,15 +462,33 @@ function comprar() {
   }
 
   estado.compras++;
-  desenharMao(ui.cartasP1, estado.maoP1, false);
+  adicionarCarta(ui.cartasP1, carta, false);
   atualizarJogador();
 
   const valor = soma(estado.maoP1);
 
+  if (valor > LIMITE) {
+    som.estouro();
+    mensagem(`Você recebeu um(a) ${carta.nome} de ${carta.naipe.nome} e estourou com ${valor}!`, 'derrota');
+    parar();
+    return;
+  }
+
+  if (valor === LIMITE) {
+    mensagem(`${carta.nome} de ${carta.naipe.nome}: 21 em cheio!`, 'vitoria');
+    parar();
+    return;
+  }
+
   mensagem(`Você recebeu um(a) ${carta.nome} de ${carta.naipe.nome}. Sua soma agora é ${valor}.`);
 
-  // O jogador para sozinho ao atingir 21, ao estourar ou ao chegar no limite de compras.
-  if (valor >= LIMITE || estado.compras >= MAX_COMPRAS || estado.baralho.length === 0) {
+  if (estado.compras >= MAX_COMPRAS) {
+    mensagem(`${carta.nome} de ${carta.naipe.nome}: você chegou ao limite de ${MAX_COMPRAS} compras com ${valor}.`);
+    parar();
+    return;
+  }
+
+  if (estado.baralho.length === 0) {
     parar();
     return;
   }
@@ -272,26 +497,71 @@ function comprar() {
 }
 
 async function parar() {
-  if (estado.emAnimacao) return;
+  if (estado.emAnimacao || !estado.vezDoJogador) return;
 
+  estado.vezDoJogador = false;
   estado.emAnimacao = true;
   habilitarJogadas(false);
+  atualizarDica();
 
-  const valorP1 = soma(estado.maoP1);
+  await espera(700);
 
-  mensagem(`Você finalizou suas jogadas com ${valorP1}. E agora, o resultado...`);
+  // No Fácil o computador já jogou: vai direto para o resultado.
+  if (DIFICULDADES[estado.dificuldade].computadorPrimeiro) resultado();
+  else await jogadaComputador();
+}
 
-  desenharMao(ui.cartasPC, estado.maoPC, false);
-  await espera(900);
+// Decide se o computador compra mais uma carta. valorP1 é null enquanto
+// você ainda não jogou (só acontece quando ele joga primeiro, sem contar cartas).
+function computadorCompra(dif, valorPC, valorP1) {
+  if (valorPC > LIMITE) return false;
+  if (!dif.contaCartas) return valorPC < dif.parada;
 
-  ui.valorPC.textContent = soma(estado.maoPC);
-  ui.ladoPC.classList.toggle('estourou', soma(estado.maoPC) > LIMITE);
+  // Difícil: joga contra a sua mão e mede o risco pelas cartas que restam.
+  if (valorP1 > LIMITE) return false;
+  if (valorPC < valorP1) return true;
+  if (valorPC > valorP1) return false;
 
-  await espera(500);
+  return riscoDeEstouro(estado.maoPC, estado.baralho) < 0.5;
+}
+
+// Laço de compras do computador, com uma carta animada por vez.
+async function comprasDoComputador(dif, valorP1) {
+  while (estado.baralho.length > 0 && computadorCompra(dif, soma(estado.maoPC), valorP1)) {
+    await espera(650);
+
+    const carta = comprarCarta(estado.maoPC);
+    adicionarCarta(ui.cartasPC, carta, false);
+    estado.compradasPC++;
+    atualizarComputador();
+
+    if (soma(estado.maoPC) > LIMITE) {
+      som.estouro();
+      break;
+    }
+  }
+
+  await espera(600);
+}
+
+async function jogadaComputador() {
+  const dif = DIFICULDADES[estado.dificuldade];
+
+  mensagem('Vez do computador', 'pensando');
+  await espera(600);
+
+  if (estado.ocultaPC) {
+    revelarCartaOculta();
+    atualizarComputador();
+    await espera(850);
+  }
+
+  await comprasDoComputador(dif, soma(estado.maoP1));
   resultado();
 }
 
 function resultado() {
+  const compradasPC = estado.compradasPC;
   const valorP1 = soma(estado.maoP1);
   const valorPC = soma(estado.maoPC);
   const estourouP1 = valorP1 > LIMITE;
@@ -303,21 +573,40 @@ function resultado() {
   else if ((!estourouP1 && valorP1 > valorPC) || (!estourouP1 && estourouPC)) desfecho = 'vitoria';
   else desfecho = 'derrota';
 
+  const plural = compradasPC === 1 ? 'carta' : 'cartas';
+  const jogadaPC = compradasPC === 0 ? 'não comprou nenhuma carta' : `comprou ${compradasPC} ${plural}`;
+
   if (desfecho === 'empate') {
     const texto = estourouP1 && estourouPC
-      ? `Vocês empataram! Ambos ultrapassaram 21 — você fez ${valorP1} e o computador ${valorPC}.`
-      : `Vocês empataram! Ambos tiveram a soma de ${valorP1}.`;
+      ? `Empate! Os dois estouraram — você com ${valorP1} e o computador com ${valorPC}.`
+      : `Empate! Os dois fizeram ${valorP1}. O computador ${jogadaPC}.`;
 
     // No empate ninguém pontua: na melhor de três a rodada é repetida.
+    som.empate();
     mensagem(texto, 'destaque');
   } else if (desfecho === 'vitoria') {
     ui.ladoP1.classList.add('vencedor');
+    ui.mesa.classList.add('vitoria');
     estado.placar.p1 += estado.md3 ? 1 : 0;
-    mensagem(`Você ganhou! O computador fez ${valorPC} e você fez ${valorP1}.`, 'vitoria');
+
+    const detalhe = estourouPC
+      ? `O computador ${jogadaPC} e estourou com ${valorPC}.`
+      : `${valorP1} contra ${valorPC} — o computador ${jogadaPC}.`;
+
+    som.vitoria();
+    if (!movimentoReduzido) confete();
+    mensagem(`Você ganhou! ${detalhe}`, 'vitoria');
   } else {
     ui.ladoPC.classList.add('vencedor');
+    ui.mesa.classList.add('derrota');
     estado.placar.pc += estado.md3 ? 1 : 0;
-    mensagem(`Você perdeu! O computador fez ${valorPC} e você fez ${valorP1}.`, 'derrota');
+
+    const detalhe = estourouP1
+      ? `Você estourou com ${valorP1} e o computador ficou com ${valorPC}.`
+      : `${valorPC} contra ${valorP1} — o computador ${jogadaPC}.`;
+
+    som.derrota();
+    mensagem(`Você perdeu. ${detalhe}`, 'derrota');
   }
 
   atualizarPlacar();
@@ -330,14 +619,20 @@ function finalizarRodada(desfecho) {
   ui.btnParar.hidden = true;
   ui.btnProxima.hidden = false;
   ui.btnSair.hidden = false;
+  delete ui.btnProxima.dataset.reiniciarPlacar;
 
   if (!estado.md3) {
-    ui.btnProxima.textContent = 'Jogar de novo';
+    rotularProxima('Jogar de novo');
     return;
   }
 
   if (estado.placar.p1 >= PONTOS_MD3 || estado.placar.pc >= PONTOS_MD3) {
     const venceu = estado.placar.p1 >= PONTOS_MD3;
+
+    if (venceu) {
+      som.fanfarra();
+      if (!movimentoReduzido) confete();
+    }
 
     mensagem(
       venceu
@@ -346,16 +641,82 @@ function finalizarRodada(desfecho) {
       venceu ? 'vitoria' : 'derrota',
     );
 
-    ui.btnProxima.textContent = 'Jogar outra melhor de três';
+    rotularProxima('Jogar outra melhor de três');
     ui.btnProxima.dataset.reiniciarPlacar = 'sim';
     return;
   }
 
-  ui.btnProxima.textContent = desfecho === 'empate' ? 'Repetir a rodada' : 'Próxima rodada';
-  delete ui.btnProxima.dataset.reiniciarPlacar;
+  rotularProxima(desfecho === 'empate' ? 'Repetir a rodada' : 'Próxima rodada');
+}
+
+function rotularProxima(texto) {
+  ui.btnProxima.innerHTML = `${texto} <kbd>N</kbd>`;
+}
+
+// ---------------------------------------------------------------- confete
+
+function confete() {
+  const canvas = ui.confete;
+  const ctx = canvas.getContext('2d');
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.hidden = false;
+
+  const cores = ['#e6c15c', '#f4f1e8', '#6ee7a8', '#d0403c', '#7fb3ff'];
+  const particulas = Array.from({ length: 140 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -20 - Math.random() * canvas.height * 0.4,
+    vx: (Math.random() - 0.5) * 2.5,
+    vy: 2 + Math.random() * 3.5,
+    largura: 6 + Math.random() * 6,
+    altura: 8 + Math.random() * 8,
+    angulo: Math.random() * Math.PI,
+    giro: (Math.random() - 0.5) * 0.25,
+    cor: cores[Math.floor(Math.random() * cores.length)],
+  }));
+
+  const inicio = performance.now();
+  const duracao = 2800;
+
+  function quadro(agora) {
+    const passado = agora - inicio;
+    const fade = Math.max(0, 1 - Math.max(0, passado - 2000) / 800);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for (const p of particulas) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.03;
+      p.angulo += p.giro;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.angulo);
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = p.cor;
+      ctx.fillRect(-p.largura / 2, -p.altura / 2, p.largura, p.altura);
+      ctx.restore();
+    }
+
+    if (passado < duracao) {
+      requestAnimationFrame(quadro);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.hidden = true;
+    }
+  }
+
+  requestAnimationFrame(quadro);
 }
 
 // ------------------------------------------------------------------ eventos
+
+function atualizarBotaoSom() {
+  ui.btnSom.textContent = som.mudo ? '🔇' : '🔊';
+  ui.btnSom.setAttribute('aria-pressed', String(som.mudo));
+}
 
 ui.formNome.addEventListener('submit', (evento) => {
   evento.preventDefault();
@@ -380,7 +741,6 @@ ui.btnParar.addEventListener('click', parar);
 ui.btnProxima.addEventListener('click', () => {
   if (ui.btnProxima.dataset.reiniciarPlacar === 'sim' || !estado.md3) {
     estado.placar = { p1: 0, pc: 0 };
-    delete ui.btnProxima.dataset.reiniciarPlacar;
   }
 
   iniciarRodada();
@@ -388,8 +748,43 @@ ui.btnProxima.addEventListener('click', () => {
 
 ui.btnSair.addEventListener('click', () => {
   estado.placar = { p1: 0, pc: 0 };
+  ui.mesa.className = 'mesa';
   mostrarTela('tela-opcoes');
 });
 
 ui.btnRegras.addEventListener('click', () => ui.dialogo.showModal());
 ui.btnFecharRegras.addEventListener('click', () => ui.dialogo.close());
+
+ui.btnSom.addEventListener('click', () => {
+  som.alternar();
+  atualizarBotaoSom();
+  if (!som.mudo) som.clique();
+});
+
+// O navegador só libera áudio depois de um gesto do usuário.
+document.addEventListener('pointerdown', () => som.ativar(), { once: true });
+
+document.addEventListener('click', (evento) => {
+  if (evento.target.closest('.btn') && evento.target.closest('.btn') !== ui.btnSom) som.clique();
+});
+
+// Atalhos de teclado: só valem na tela do jogo e com o diálogo fechado.
+document.addEventListener('keydown', (evento) => {
+  if (ui.dialogo.open || !el('tela-jogo').classList.contains('tela-ativa')) return;
+  if (evento.altKey || evento.ctrlKey || evento.metaKey) return;
+
+  const tecla = evento.key.toLowerCase();
+
+  if ((tecla === 'c' || tecla === ' ') && !ui.btnComprar.hidden && !ui.btnComprar.disabled) {
+    evento.preventDefault();
+    ui.btnComprar.click();
+  } else if (tecla === 'p' && !ui.btnParar.hidden && !ui.btnParar.disabled) {
+    evento.preventDefault();
+    ui.btnParar.click();
+  } else if ((tecla === 'n' || tecla === 'enter') && !ui.btnProxima.hidden) {
+    evento.preventDefault();
+    ui.btnProxima.click();
+  }
+});
+
+atualizarBotaoSom();

@@ -11,13 +11,29 @@ São as mesmas do programa original:
 - O ás vale **1**; 10, J, Q e K valem **10**.
 - Cada lado recebe **2 cartas** no início da rodada.
 - Você pode comprar no máximo **5 cartas** por rodada.
-- O computador joga primeiro e você só vê a pontuação dele ao finalizar suas jogadas.
 - Vence a maior soma que não passar de 21; somas iguais (ou os dois estourando) dão empate.
-- Dificuldade define até quando o computador compra: **Fácil** para em 14, **Médio** em 17, **Difícil** em 19.
+- Melhor de três opcional: vence quem fizer 2 pontos, e empates repetem a rodada.
+
+### Dificuldades
+
+| Modo | Como o computador joga | Vitórias do jogador* |
+|------|------------------------|----------------------|
+| **Fácil** | Joga primeiro, de cartas abertas, e compra até chegar a 14. Você sabe o valor exato que precisa bater. | ~53% |
+| **Médio** | Guarda uma carta escondida. Depois que você para, revela e compra até 17, como um crupiê. | ~43% |
+| **Difícil** | Conhece a sua soma final e conta as cartas que já saíram: só compra quando está atrás, e se você estourar ele nem arrisca. | ~34% |
+
+\* Simulação de 4 000 rodadas com um jogador que compra enquanto o risco de estourar é menor que 40%.
+
+A versão web também mostra o **risco de estourar** na próxima carta, calculado só com as cartas
+que você ainda não viu — é, afinal, um jogo de treino.
 
 ## Versão web
 
-Site estático, sem dependências: `index.html`, `styles.css` e `game.js`. Para rodar localmente:
+Site estático, sem dependências: `index.html`, `styles.css` e `game.js`. Os sons são sintetizados
+com a Web Audio API (nada para baixar) e podem ser desligados no botão 🔊. Atalhos: `C` compra,
+`P` para, `N` próxima rodada.
+
+Para rodar localmente:
 
 ```sh
 python3 -m http.server 8000
@@ -39,7 +55,7 @@ Usa `sleep()` de `<unistd.h>`, portanto roda em Linux/macOS (ou WSL no Windows).
 ## Correções feitas no `Blackjack.c`
 
 - **Baralho não era reembaralhado entre rodadas:** `baralho()` declarava um vetor `cartas` local que sombreava o global, então as cartas usadas nunca voltavam. Na melhor de três a segunda rodada jogava com um baralho quase vazio e o programa podia travar.
-- **Laço infinito na dificuldade Difícil:** o sorteio do computador aceitava apenas A, 2, 3 e 4 sem verificar cartas já usadas — esgotadas as 16 cartas baixas, o `do/while` nunca terminava. O computador agora compra do baralho normalmente até o limite da dificuldade.
+- **Laço infinito na dificuldade Difícil:** o sorteio do computador aceitava apenas A, 2, 3 e 4 sem verificar cartas já usadas — esgotadas as 16 cartas baixas, o `do/while` nunca terminava.
 - **`gets()`:** substituído por `fgets()` com corte do `\n`, eliminando o estouro de buffer.
 - **Estouro de buffer nas mãos:** `CSP1`/`CSPC` tinham 15 posições e podiam receber mais cartas do que isso.
 - **`sleep()` sem declaração:** faltava `#include <unistd.h>`.
